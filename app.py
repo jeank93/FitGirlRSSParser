@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 import os
 import json
+import requests
 
 app = Flask(__name__)
 
@@ -32,8 +33,8 @@ def generate_rss_feed(feed):
     ET.SubElement(channel, "title").text = "Custom RSS feed for FitGirl Repacks"
     ET.SubElement(channel, "link").text = "http://localhost:5000/"
     ET.SubElement(channel, "description").text = "Custom RSS feed for FitGirl Repacks"
+    list = []
 
-    all_magnet_links = []
     for entry in feed['entries']:
         for tag in entry.get('tags',[]):
             if "Lossless Repack" == tag['term']:
@@ -42,8 +43,19 @@ def generate_rss_feed(feed):
                 item = ET.SubElement(channel, "item")
                 magnet_tag = soup.find('a', href=lambda href: href and href.startswith('magnet:'))
                 ET.SubElement(item, "title").text = entry.get('title')
-                ET.SubElement(item, "link").text = magnet_tag['href']
-                ET.SubElement(item, "comments").text = entry.get('link')
+                try:
+                    ET.SubElement(item, "link").text = magnet_tag['href']
+                except:
+                    try:
+                        if magnet_tag == None:
+                            forumlink = soup.find('a', href=lambda href: href and href.startswith('https://cs.rin.ru'))
+                            response = requests.get(forumlink['href'] + "&start=9999").text
+                            soup = BeautifulSoup(response, 'html.parser')
+                            for line in soup.get_text('\n', strip=True).split("\n"):
+                                if line.startswith('magnet:'):
+                                   ET.SubElement(item, "link").text = line
+                    except:
+                        ET.SubElement(item, "link").text = entry.get('link')
                 ET.SubElement(item, "description").text = entry.get('description')
                 ET.SubElement(item, "pubDate").text = entry.get('published')
                 
